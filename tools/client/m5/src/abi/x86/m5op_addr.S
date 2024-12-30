@@ -1,17 +1,5 @@
 /*
- * Copyright (c) 2011, 2017 ARM Limited
- * All rights reserved
- *
- * The license below extends only to copyright in the software and shall
- * not be construed as granting a license to any other intellectual
- * property including but not limited to intellectual property relating
- * to a hardware implementation of the functionality of the software
- * licensed hereunder.  You may use the software subject to the license
- * terms below provided that you ensure that this notice is replicated
- * unmodified and in its entirety in all distributions of the software,
- * modified or unmodified, in source code or in binary form.
- *
- * Copyright (c) 2003-2005 The Regents of The University of Michigan
+ * Copyright (c) 2003-2006 The Regents of The University of Michigan
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,23 +26,38 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __UTIL_M5_MMAP_H__
-#define __UTIL_M5_MMAP_H__
+#include <gem5/asm/generic/m5ops.h>
 
-#include <stdint.h>
+/*
+ * Note: The ABI for pseudo ops using the M5OP_ADDR is defined in
+ * src/arch/x86/pseudo_inst_abi.hh. If the ABI is changed below, it's likely
+ * that the ABI in the arch directory will also need to be updated.
+ */
 
-#ifdef __cplusplus
-extern "C" {
+.macro  m5op_func, name, func
+        .globl \name
+        .func \name
+\name:
+#if defined(M5OP_PIC)
+        mov m5_mem@gotpcrel(%rip), %r11
+        mov (%r11), %r11
+#else
+        mov m5_mem, %r11
 #endif
+        mov $\func, %rax
+        shl $8, %rax
+        mov 0(%r11, %rax, 1), %rax
+        ret
+        .endfunc
+.endm
 
-extern void *m5_mem;
-extern uint64_t m5op_addr;
-extern const char *m5_mmap_dev;
-void map_m5_mem();
-void unmap_m5_mem();
+.text
+#define M5OP(name, func) m5op_func M5OP_MERGE_TOKENS(name, _addr), func;
+        M5OP_FOREACH
+#undef M5OP
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif // __UTIL_M5_MMAP_H__
+/* The line below is added to remove the warning
+* saying that the file is not specifiying GNU non
+* executable stack in ubuntu 24.04
+*/
+.section .note.GNU-stack

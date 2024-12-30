@@ -38,62 +38,30 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include <cstring>
 
-#include "m5_mmap.h"
+#include "args.hh"
 
-void *m5_mem = NULL;
-
-#ifndef M5OP_ADDR
-#define M5OP_ADDR 0
-#endif
-uint64_t m5op_addr = M5OP_ADDR;
-
-const char *m5_mmap_dev = "/dev/mem";
-
-void
-map_m5_mem()
+bool
+Args::pack(const std::string &str, uint64_t regs[], int num_regs)
 {
-    int fd;
+    const size_t RegSize = sizeof(regs[0]);
+    const size_t MaxLen = num_regs * RegSize;
+    const char *arg = str.c_str();
 
-    if (m5_mem) {
-        fprintf(stderr, "m5 mem already mapped.\n");
-        exit(1);
+    std::memset(regs, 0, MaxLen);
+
+    size_t len = str.size();
+
+    if (len > MaxLen)
+        return false;
+
+    while (len) {
+        for (int offset = 0; offset < RegSize && len; offset++, len--) {
+            int shift = offset * 8;
+            *regs |= (uint64_t)(uint8_t)*arg++ << shift;
+        }
+        regs++;
     }
-
-    if (m5op_addr == 0) {
-        fprintf(stdout, "Warn: m5op_addr is set to 0x0\n");
-    }
-
-    fd = open(m5_mmap_dev, O_RDWR | O_SYNC);
-    if (fd == -1) {
-        fprintf(stderr, "Can't open %s: %s\n", m5_mmap_dev, strerror(errno));
-        exit(1);
-    }
-
-    m5_mem = mmap(NULL, 0x10000, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-                  m5op_addr);
-    close(fd);
-
-    if (!m5_mem) {
-        fprintf(stderr, "Can't map %s: %s\n", m5_mmap_dev, strerror(errno));
-        exit(1);
-    }
-}
-
-void
-unmap_m5_mem()
-{
-    if (m5_mem) {
-        munmap(m5_mem, 0x10000);
-        m5_mem = NULL;
-    }
+    return true;
 }

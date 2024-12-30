@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2011, 2017 ARM Limited
- * All rights reserved
- *
- * The license below extends only to copyright in the software and shall
- * not be construed as granting a license to any other intellectual
- * property including but not limited to intellectual property relating
- * to a hardware implementation of the functionality of the software
- * licensed hereunder.  You may use the software subject to the license
- * terms below provided that you ensure that this notice is replicated
- * unmodified and in its entirety in all distributions of the software,
- * modified or unmodified, in source code or in binary form.
- *
- * Copyright (c) 2003-2005 The Regents of The University of Michigan
- * All rights reserved.
+ * Copyright 2020 Google Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -38,23 +25,40 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __UTIL_M5_MMAP_H__
-#define __UTIL_M5_MMAP_H__
+package gem5;
 
-#include <stdint.h>
+import org.junit.*;
+import static org.junit.Assert.*;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+import org.junit.runner.JUnitCore;
+import org.junit.runner.Result;
+import org.junit.runner.notification.Failure;
 
-extern void *m5_mem;
-extern uint64_t m5op_addr;
-extern const char *m5_mmap_dev;
-void map_m5_mem();
-void unmap_m5_mem();
+import java.util.Random;
+import java.util.Map;
 
-#ifdef __cplusplus
+import gem5.Ops;
+
+public class OpsTest {
+
+    @Test
+    public void m5SumShouldReturnSum() {
+        Random rand = new Random();
+
+        gem5.Ops gem5_ops = gem5.Ops.callTypes.get("default");
+
+        long a = rand.nextInt(1000);
+        long b = rand.nextInt(1000);
+        long c = rand.nextInt(1000);
+        long d = rand.nextInt(1000);
+        long e = rand.nextInt(1000);
+        long f = rand.nextInt(1000);
+
+        long sum = gem5_ops.sum(a, b, c, d, e, f);
+        assertEquals(a + b + c + d + e + f, sum);
+    }
+
+    public static void main(String[] args) {
+        org.junit.runner.JUnitCore.main("gem5.OpsTest");
+    }
 }
-#endif
-
-#endif // __UTIL_M5_MMAP_H__

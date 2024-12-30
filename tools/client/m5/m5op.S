@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2011, 2017 ARM Limited
- * All rights reserved
+ * Copyright (c) 2020 The Regents of the University of California.
+ * All rights reserved.
  *
  * The license below extends only to copyright in the software and shall
  * not be construed as granting a license to any other intellectual
@@ -10,9 +10,6 @@
  * terms below provided that you ensure that this notice is replicated
  * unmodified and in its entirety in all distributions of the software,
  * modified or unmodified, in source code or in binary form.
- *
- * Copyright (c) 2003-2005 The Regents of The University of Michigan
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -38,62 +35,21 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 
-#include "m5_mmap.h"
+#include <gem5/asm/generic/m5ops.h>
 
-void *m5_mem = NULL;
+// riscv pseudo instructions have bit 1:0 (QUADRANT) = 0x3,
+// bit 6:2 (OPCODE5) = 0x1e, and bit 31:25 (M5FUNC) specifies
+// the function performed by pseudo instruction
 
-#ifndef M5OP_ADDR
-#define M5OP_ADDR 0
-#endif
-uint64_t m5op_addr = M5OP_ADDR;
+.macro	m5op_func, name, func
+        .globl \name
+        \name:
+        .long 0x0000007b | (\func << 25)
+        ret
+.endm
 
-const char *m5_mmap_dev = "/dev/mem";
-
-void
-map_m5_mem()
-{
-    int fd;
-
-    if (m5_mem) {
-        fprintf(stderr, "m5 mem already mapped.\n");
-        exit(1);
-    }
-
-    if (m5op_addr == 0) {
-        fprintf(stdout, "Warn: m5op_addr is set to 0x0\n");
-    }
-
-    fd = open(m5_mmap_dev, O_RDWR | O_SYNC);
-    if (fd == -1) {
-        fprintf(stderr, "Can't open %s: %s\n", m5_mmap_dev, strerror(errno));
-        exit(1);
-    }
-
-    m5_mem = mmap(NULL, 0x10000, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-                  m5op_addr);
-    close(fd);
-
-    if (!m5_mem) {
-        fprintf(stderr, "Can't map %s: %s\n", m5_mmap_dev, strerror(errno));
-        exit(1);
-    }
-}
-
-void
-unmap_m5_mem()
-{
-    if (m5_mem) {
-        munmap(m5_mem, 0x10000);
-        m5_mem = NULL;
-    }
-}
+.text
+#define M5OP(name, func) m5op_func name, func;
+        M5OP_FOREACH
+#undef M5OP

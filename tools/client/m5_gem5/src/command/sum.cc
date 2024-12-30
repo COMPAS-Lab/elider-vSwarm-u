@@ -1,16 +1,4 @@
 /*
- * Copyright (c) 2011, 2017 ARM Limited
- * All rights reserved
- *
- * The license below extends only to copyright in the software and shall
- * not be construed as granting a license to any other intellectual
- * property including but not limited to intellectual property relating
- * to a hardware implementation of the functionality of the software
- * licensed hereunder.  You may use the software subject to the license
- * terms below provided that you ensure that this notice is replicated
- * unmodified and in its entirety in all distributions of the software,
- * modified or unmodified, in source code or in binary form.
- *
  * Copyright (c) 2003-2005 The Regents of The University of Michigan
  * All rights reserved.
  *
@@ -38,23 +26,32 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __UTIL_M5_MMAP_H__
-#define __UTIL_M5_MMAP_H__
+#include <iostream>
 
-#include <stdint.h>
+#include "args.hh"
+#include "command.hh"
+#include "dispatch_table.hh"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace
+{
 
-extern void *m5_mem;
-extern uint64_t m5op_addr;
-extern const char *m5_mmap_dev;
-void map_m5_mem();
-void unmap_m5_mem();
+// For testing purposes.
+bool
+do_sum(const DispatchTable &dt, Args &args)
+{
+    uint64_t a, b, c, d, e, f;
+    if (!args.pop(a) || !args.pop(b) || !args.pop(c, 0) ||
+            !args.pop(d, 0) || !args.pop(e, 0) || !args.pop(f, 0))
+        return false;
 
-#ifdef __cplusplus
+    unsigned sum = (*dt.m5_sum)(a, b, c, d, e, f);
+    std::cout << "Sum is " << sum << "." << std::endl;
+
+    return true;
 }
-#endif
 
-#endif // __UTIL_M5_MMAP_H__
+Command sum = {
+    "sum", 2, 6, do_sum, "<a> <b> [c [d [e [f]]]]\n"
+        "        Sum a-f (defaults are 0), for testing purposes" };
+
+} // anonymous namespace

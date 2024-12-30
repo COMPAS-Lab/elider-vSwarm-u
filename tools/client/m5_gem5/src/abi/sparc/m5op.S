@@ -1,17 +1,5 @@
 /*
- * Copyright (c) 2011, 2017 ARM Limited
- * All rights reserved
- *
- * The license below extends only to copyright in the software and shall
- * not be construed as granting a license to any other intellectual
- * property including but not limited to intellectual property relating
- * to a hardware implementation of the functionality of the software
- * licensed hereunder.  You may use the software subject to the license
- * terms below provided that you ensure that this notice is replicated
- * unmodified and in its entirety in all distributions of the software,
- * modified or unmodified, in source code or in binary form.
- *
- * Copyright (c) 2003-2005 The Regents of The University of Michigan
+ * Copyright (c) 2003-2006 The Regents of The University of Michigan
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,23 +26,22 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __UTIL_M5_MMAP_H__
-#define __UTIL_M5_MMAP_H__
+#define m5_op 0x2
+#define m5_op3 0x37
 
-#include <stdint.h>
+#include <gem5/asm/generic/m5ops.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+.macro m5op_func name, func
+        .section ".text";
+        .align  4;
+        .global \name;
+        .type   \name, #function;
+\name:
+        retl
+        .long   (m5_op) << 30 | (m5_op3) << 19 | (\func) << 7;
+        .size   \name, (.-\name)
+.endm
 
-extern void *m5_mem;
-extern uint64_t m5op_addr;
-extern const char *m5_mmap_dev;
-void map_m5_mem();
-void unmap_m5_mem();
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // __UTIL_M5_MMAP_H__
+#define M5OP(name, func) m5op_func name, func;
+        M5OP_FOREACH
+#undef M5OP

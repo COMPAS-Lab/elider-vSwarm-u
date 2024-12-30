@@ -1,16 +1,4 @@
 /*
- * Copyright (c) 2011, 2017 ARM Limited
- * All rights reserved
- *
- * The license below extends only to copyright in the software and shall
- * not be construed as granting a license to any other intellectual
- * property including but not limited to intellectual property relating
- * to a hardware implementation of the functionality of the software
- * licensed hereunder.  You may use the software subject to the license
- * terms below provided that you ensure that this notice is replicated
- * unmodified and in its entirety in all distributions of the software,
- * modified or unmodified, in source code or in binary form.
- *
  * Copyright (c) 2003-2005 The Regents of The University of Michigan
  * All rights reserved.
  *
@@ -38,23 +26,55 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __UTIL_M5_MMAP_H__
-#define __UTIL_M5_MMAP_H__
+#include <cstring>
+#include <iostream>
 
-#include <stdint.h>
+#include "args.hh"
+#include "command.hh"
+#include "dispatch_table.hh"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace
+{
 
-extern void *m5_mem;
-extern uint64_t m5op_addr;
-extern const char *m5_mmap_dev;
-void map_m5_mem();
-void unmap_m5_mem();
+int
+read_file(const DispatchTable &dt, std::ostream &os)
+{
+    char buf[256 * 1024];
 
-#ifdef __cplusplus
+    // Touch all buffer pages to ensure they are mapped in the
+    // page table. This is required in the case of X86_FS, where
+    // Linux does demand paging.
+    std::memset(buf, 0, sizeof(buf));
+
+    int len;
+    int offset = 0;
+    while ((len = (*dt.m5_read_file)(buf, sizeof(buf), offset)) > 0) {
+        os.write(buf, len);
+        os.flush();
+        if (!os) {
+            std::cerr << "Failed to write file" << std::endl;
+            exit(2);
+        }
+        offset += len;
+    }
+
+    return offset;
 }
-#endif
 
-#endif // __UTIL_M5_MMAP_H__
+bool
+do_read_file(const DispatchTable &dt, Args &args)
+{
+    if (args.size() > 0)
+        return false;
+
+    read_file(dt, std::cout);
+
+    return true;
+}
+
+Command read_file_cmd = {
+    "readfile", 0, 0, do_read_file, "\n"
+        "        read a preselected file from the host and write it to "
+            "stdout" };
+
+} // anonymous namespace

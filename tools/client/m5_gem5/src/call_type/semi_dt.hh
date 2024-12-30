@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2011, 2017 ARM Limited
- * All rights reserved
- *
- * The license below extends only to copyright in the software and shall
- * not be construed as granting a license to any other intellectual
- * property including but not limited to intellectual property relating
- * to a hardware implementation of the functionality of the software
- * licensed hereunder.  You may use the software subject to the license
- * terms below provided that you ensure that this notice is replicated
- * unmodified and in its entirety in all distributions of the software,
- * modified or unmodified, in source code or in binary form.
- *
- * Copyright (c) 2003-2005 The Regents of The University of Michigan
- * All rights reserved.
+ * Copyright 2020 Google Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -38,23 +25,27 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __UTIL_M5_MMAP_H__
-#define __UTIL_M5_MMAP_H__
+#ifndef __CALL_TYPE_SEMI_DT_HH__
+#define __CALL_TYPE_SEMI_DT_HH__
 
-#include <stdint.h>
+#include "dispatch_table.hh"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern void *m5_mem;
-extern uint64_t m5op_addr;
-extern const char *m5_mmap_dev;
-void map_m5_mem();
-void unmap_m5_mem();
-
-#ifdef __cplusplus
+extern "C"
+{
+#define M5OP(name, func) __typeof__(::name) M5OP_MERGE_TOKENS(name, _semi);
+M5OP_FOREACH
+#undef M5OP
 }
-#endif
 
-#endif // __UTIL_M5_MMAP_H__
+namespace
+{
+
+static DispatchTable semi_dispatch = {
+#define M5OP(name, func) .name = &::M5OP_MERGE_TOKENS(name, _semi),
+M5OP_FOREACH
+#undef M5OP
+};
+
+} // anonymous namespace
+
+#endif // __CALL_TYPE_SEMI_DT_HH__

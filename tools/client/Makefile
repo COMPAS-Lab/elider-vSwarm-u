@@ -27,7 +27,7 @@
 MKFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
 ROOT 		:= $(abspath $(dir $(MKFILE))/../../)
 OUTPUT ?= test-client
-ARCH   ?= amd64
+ARCH   ?= riscv
 
 # Go parameters
 GOCMD=$(shell which go)
@@ -58,8 +58,8 @@ endif
 
 ## Assembly files
 M5OP_S := $(DIR)/m5op.S
-$(M5OP_S):
-	cp $(DIR)/$(ARCH)/* $(DIR)
+# $(M5OP_S):
+#	cp $(DIR)/$(ARCH)/m5op.S $(DIR)
 
 
 ## m5 ops library -------------------------
@@ -74,10 +74,17 @@ RANLIB = aarch64-linux-gnu-ranlib
 endif
 endif
 
+ifeq ($(ARCH), riscv)
+CC = /home/farid/riscv-11.22/bin/riscv64-unknown-linux-gnu-gcc
+CXX = /home/farid/riscv-11.22/bin/riscv64-unknown-linux-gnu-g++
+AR = /home/farid/riscv-11.22/bin/riscv64-unknown-linux-gnu-ar
+RANLIB = /home/farid/riscv-11.22/bin/riscv64-unknown-linux-gnu-ranlib
+endif
+
 CFLAGS = -g -fPIC
 DIR = m5
 
-SFILES :=$(DIR)/m5op.S $(DIR)/m5op_addr.S
+SFILES :=$(DIR)/m5op.S #$(DIR)/m5op_addr.S
 OBJFILES := $(DIR)/m5_mmap.o $(SFILES:.S=.o)
 
 
@@ -85,14 +92,14 @@ OBJFILES := $(DIR)/m5_mmap.o $(SFILES:.S=.o)
 		$(CC) -o $@ $< -c -g -fPIC
 
 $(DIR)/m5_mmap.o : $(DIR)/m5_mmap.c
-		sed -i 's/__M5_ADDR__/$(M5OP_ADDR)/g' $<
+#		sed -i 's/__M5_ADDR__/$(M5OP_ADDR)/g' $<
 		$(CC) -o $@ $< -c -g -fPIC
 
-m5ops: $(OBJFILES)
+m5ops: #$(OBJFILES)
 		$(AR) rc -o $(DIR)/lib$@.a $^
 		$(RANLIB) $(DIR)/lib$@.a
 
-m5lib: $(M5OP_S) m5ops
+m5lib: m5ops
 ## ----------------------------------------
 
 
@@ -100,7 +107,8 @@ m5lib: $(M5OP_S) m5ops
 _CGO_LDFLAGS="-g -O2 -no-pie"
 
 $(BIN): main.go version.go m5lib
-	CC=$(CC) CGO_LDFLAGS=$(_CGO_LDFLAGS) CGO_ENABLED=1 GOOS=linux GOARCH=$(ARCH) go build -o $@ -v .
+	echo $(ARCH)
+	CC=$(CC) CXX=$(CXX) CGO_LDFLAGS=$(_CGO_LDFLAGS) CGO_ENABLED=1 GOOS=linux GOARCH=$(ARCH)64 go build -x -o $@ -v .
 
 all: $(BIN)
 

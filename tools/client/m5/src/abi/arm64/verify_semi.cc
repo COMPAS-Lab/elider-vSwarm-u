@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2011, 2017 ARM Limited
- * All rights reserved
- *
- * The license below extends only to copyright in the software and shall
- * not be construed as granting a license to any other intellectual
- * property including but not limited to intellectual property relating
- * to a hardware implementation of the functionality of the software
- * licensed hereunder.  You may use the software subject to the license
- * terms below provided that you ensure that this notice is replicated
- * unmodified and in its entirety in all distributions of the software,
- * modified or unmodified, in source code or in binary form.
- *
- * Copyright (c) 2003-2005 The Regents of The University of Michigan
- * All rights reserved.
+ * Copyright 2020 Google Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -38,23 +25,30 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __UTIL_M5_MMAP_H__
-#define __UTIL_M5_MMAP_H__
+#include <gtest/gtest.h>
 
-#include <stdint.h>
+#include "call_type/verify_semi.hh"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+extern uint64_t m5_semi_argument_block[];
 
-extern void *m5_mem;
-extern uint64_t m5op_addr;
-extern const char *m5_mmap_dev;
-void map_m5_mem();
-void unmap_m5_mem();
+void
+abi_verify_semi(const siginfo_t &info, int func,
+        const std::vector<uint64_t> &args)
+{
+    // Extract the instruction that triggered the signal.
+    uint32_t inst = *(uint32_t *)info.si_addr;
 
-#ifdef __cplusplus
+    // Get the imm16 field from it.
+    uint32_t imm16 = (inst >> 5) & 0xffff;
+
+    // Verify that it used the gem5 immediate value.
+    EXPECT_EQ(imm16, 0x5d57);
+
+    // Check that the right function was called.
+    EXPECT_EQ(func, (m5_semi_argument_block[0] >> 8) & 0xff);
+
+    // Check that the arguments were correct.
+    uint64_t *arg = &m5_semi_argument_block[1];
+    for (uint64_t expected: args)
+        EXPECT_EQ(*arg++, expected);
 }
-#endif
-
-#endif // __UTIL_M5_MMAP_H__

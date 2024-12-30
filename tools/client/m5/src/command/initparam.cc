@@ -1,16 +1,4 @@
 /*
- * Copyright (c) 2011, 2017 ARM Limited
- * All rights reserved
- *
- * The license below extends only to copyright in the software and shall
- * not be construed as granting a license to any other intellectual
- * property including but not limited to intellectual property relating
- * to a hardware implementation of the functionality of the software
- * licensed hereunder.  You may use the software subject to the license
- * terms below provided that you ensure that this notice is replicated
- * unmodified and in its entirety in all distributions of the software,
- * modified or unmodified, in source code or in binary form.
- *
  * Copyright (c) 2003-2005 The Regents of The University of Michigan
  * All rights reserved.
  *
@@ -38,23 +26,30 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __UTIL_M5_MMAP_H__
-#define __UTIL_M5_MMAP_H__
+#include <iostream>
 
-#include <stdint.h>
+#include "args.hh"
+#include "command.hh"
+#include "dispatch_table.hh"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace
+{
 
-extern void *m5_mem;
-extern uint64_t m5op_addr;
-extern const char *m5_mmap_dev;
-void map_m5_mem();
-void unmap_m5_mem();
+bool
+do_initparam(const DispatchTable &dt, Args &args)
+{
+    uint64_t key_str[2];
+    if (!args.pop(key_str, 2))
+        return false;
 
-#ifdef __cplusplus
+    uint64_t val = (*dt.m5_init_param)(key_str[0], key_str[1]);
+    std::cout << val;
+
+    return true;
 }
-#endif
 
-#endif // __UTIL_M5_MMAP_H__
+Command init_param = {
+    "initparam", 1, 1, do_initparam, "[key]\n"
+        "        optional key may be at most 16 characters long" };
+
+} // anonymous namespace

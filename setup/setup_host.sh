@@ -108,7 +108,7 @@ export PATH=$PATH:/usr/local/go/bin
 sudo sh -c  "echo 'export PATH=\$PATH:/usr/local/go/bin' >> /etc/profile"
 sudo sh -c  "echo 'export PATH=\$PATH:/usr/local/go/bin' >> ${HOME}/.bashrc"
 
-source ${HOME}/.bashrc
+#source ${HOME}/.bashrc
 echo "Installed: $(go version)"
 
 END=$(date +%s.%N)

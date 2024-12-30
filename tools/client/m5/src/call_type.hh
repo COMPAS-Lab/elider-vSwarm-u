@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2011, 2017 ARM Limited
- * All rights reserved
- *
- * The license below extends only to copyright in the software and shall
- * not be construed as granting a license to any other intellectual
- * property including but not limited to intellectual property relating
- * to a hardware implementation of the functionality of the software
- * licensed hereunder.  You may use the software subject to the license
- * terms below provided that you ensure that this notice is replicated
- * unmodified and in its entirety in all distributions of the software,
- * modified or unmodified, in source code or in binary form.
- *
- * Copyright (c) 2003-2005 The Regents of The University of Michigan
- * All rights reserved.
+ * Copyright 2020 Google Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -38,23 +25,57 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __UTIL_M5_MMAP_H__
-#define __UTIL_M5_MMAP_H__
+#ifndef __CALL_TYPE_HH__
+#define __CALL_TYPE_HH__
 
-#include <stdint.h>
+#include <iostream>
+#include <map>
+#include <string>
+#include <utility>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+class Args;
+class DispatchTable;
 
-extern void *m5_mem;
-extern uint64_t m5op_addr;
-extern const char *m5_mmap_dev;
-void map_m5_mem();
-void unmap_m5_mem();
+class CallType
+{
+  public:
+    enum class CheckArgsResult {
+        Match,
+        NoMatch,
+        Usage
+    };
 
-#ifdef __cplusplus
-}
-#endif
+  protected:
+    const std::string name;
 
-#endif // __UTIL_M5_MMAP_H__
+    virtual bool isDefault() const = 0;
+    virtual CheckArgsResult checkArgs(Args &args);
+    virtual void init() {}
+
+    static std::map<std::string, CallType &> &map();
+
+    virtual void printBrief(std::ostream &os) const { os << "--" << name; }
+    virtual void printDesc(std::ostream &os) const = 0;
+    std::string formattedUsage() const;
+
+  public:
+    CallType(const std::string &_name) : name(_name)
+    {
+        map().emplace(std::piecewise_construct,
+            std::forward_as_tuple(std::string(_name)),
+            std::forward_as_tuple(*this));
+    }
+
+    ~CallType()
+    {
+        map().erase(name);
+    }
+
+    static CallType *detect(Args &args);
+    static std::string usageSummary();
+
+    virtual const DispatchTable &getDispatch() const = 0;
+};
+
+
+#endif // __CALL_TYPE_HH__

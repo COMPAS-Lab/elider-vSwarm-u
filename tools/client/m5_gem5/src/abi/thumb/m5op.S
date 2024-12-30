@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017 ARM Limited
+ * Copyright (c) 2010, 2016 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -11,7 +11,7 @@
  * unmodified and in its entirety in all distributions of the software,
  * modified or unmodified, in source code or in binary form.
  *
- * Copyright (c) 2003-2005 The Regents of The University of Michigan
+ * Copyright (c) 2003-2006 The Regents of The University of Michigan
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,63 +37,24 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+.syntax unified
+.thumb
 
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include <gem5/asm/generic/m5ops.h>
 
-#include "m5_mmap.h"
+.text
 
-void *m5_mem = NULL;
+.macro m5op_func name, func
+        .align 2
+        .globl \name
+        .thumb_func
+\name:
+        .short 0xEE00 | \func
+        .short 0x0110
+        bx lr
+.endm
 
-#ifndef M5OP_ADDR
-#define M5OP_ADDR 0
-#endif
-uint64_t m5op_addr = M5OP_ADDR;
-
-const char *m5_mmap_dev = "/dev/mem";
-
-void
-map_m5_mem()
-{
-    int fd;
-
-    if (m5_mem) {
-        fprintf(stderr, "m5 mem already mapped.\n");
-        exit(1);
-    }
-
-    if (m5op_addr == 0) {
-        fprintf(stdout, "Warn: m5op_addr is set to 0x0\n");
-    }
-
-    fd = open(m5_mmap_dev, O_RDWR | O_SYNC);
-    if (fd == -1) {
-        fprintf(stderr, "Can't open %s: %s\n", m5_mmap_dev, strerror(errno));
-        exit(1);
-    }
-
-    m5_mem = mmap(NULL, 0x10000, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-                  m5op_addr);
-    close(fd);
-
-    if (!m5_mem) {
-        fprintf(stderr, "Can't map %s: %s\n", m5_mmap_dev, strerror(errno));
-        exit(1);
-    }
-}
-
-void
-unmap_m5_mem()
-{
-    if (m5_mem) {
-        munmap(m5_mem, 0x10000);
-        m5_mem = NULL;
-    }
-}
+.text
+#define M5OP(name, func) m5op_func name, func;
+        M5OP_FOREACH
+#undef M5OP

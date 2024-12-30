@@ -1,16 +1,4 @@
 /*
- * Copyright (c) 2011, 2017 ARM Limited
- * All rights reserved
- *
- * The license below extends only to copyright in the software and shall
- * not be construed as granting a license to any other intellectual
- * property including but not limited to intellectual property relating
- * to a hardware implementation of the functionality of the software
- * licensed hereunder.  You may use the software subject to the license
- * terms below provided that you ensure that this notice is replicated
- * unmodified and in its entirety in all distributions of the software,
- * modified or unmodified, in source code or in binary form.
- *
  * Copyright (c) 2003-2005 The Regents of The University of Michigan
  * All rights reserved.
  *
@@ -38,23 +26,60 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __UTIL_M5_MMAP_H__
-#define __UTIL_M5_MMAP_H__
+#ifndef __COMMAND_HH__
+#define __COMMAND_HH__
 
-#include <stdint.h>
+#include <map>
+#include <string>
+#include <utility>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+class Args;
+class DispatchTable;
 
-extern void *m5_mem;
-extern uint64_t m5op_addr;
-extern const char *m5_mmap_dev;
-void map_m5_mem();
-void unmap_m5_mem();
+class Command
+{
+  private:
+    const std::string name;
 
-#ifdef __cplusplus
-}
-#endif
+    // The minimum number of arguments the command expects.
+    const int minArgs;
+    // The maximum number of arguments the command can handle.
+    const int maxArgs;
 
-#endif // __UTIL_M5_MMAP_H__
+    using FuncType = bool (*)(const DispatchTable &dt, Args &args);
+    // A function which processes command line arguments and passes them to
+    // the underlying function through the dispatch table.
+    FuncType func;
+
+    // Help text for this command.
+    const std::string usageStr;
+
+    static std::map<std::string, Command &> &map();
+
+  public:
+
+    Command(const std::string &_name, int _min, int _max, FuncType _func,
+            const std::string &_usage) :
+        name(_name), minArgs(_min), maxArgs(_max), func(_func),
+        usageStr(_usage)
+    {
+        map().emplace(std::piecewise_construct,
+                    std::forward_as_tuple(std::string(_name)),
+                    std::forward_as_tuple(*this));
+    }
+
+    ~Command() { map().erase(name); }
+
+    static bool run(const DispatchTable &dt, Args &args);
+
+    static std::string
+    usageSummary()
+    {
+        std::string summary;
+        for (auto &p: Command::map())
+            summary += "    " + p.first + " " + p.second.usageStr + "\n";
+        return summary;
+    }
+};
+
+#endif // __COMMAND_HH__

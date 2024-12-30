@@ -1,16 +1,4 @@
 /*
- * Copyright (c) 2011, 2017 ARM Limited
- * All rights reserved
- *
- * The license below extends only to copyright in the software and shall
- * not be construed as granting a license to any other intellectual
- * property including but not limited to intellectual property relating
- * to a hardware implementation of the functionality of the software
- * licensed hereunder.  You may use the software subject to the license
- * terms below provided that you ensure that this notice is replicated
- * unmodified and in its entirety in all distributions of the software,
- * modified or unmodified, in source code or in binary form.
- *
  * Copyright (c) 2003-2005 The Regents of The University of Michigan
  * All rights reserved.
  *
@@ -38,23 +26,28 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __UTIL_M5_MMAP_H__
-#define __UTIL_M5_MMAP_H__
+#include "args.hh"
+#include "command.hh"
+#include "dispatch_table.hh"
 
-#include <stdint.h>
+namespace
+{
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+bool
+do_reset_stats(const DispatchTable &dt, Args &args)
+{
+    uint64_t ns_delay, ns_period;
+    if (!args.pop(ns_delay, 0) || !args.pop(ns_period, 0))
+        return false;
 
-extern void *m5_mem;
-extern uint64_t m5op_addr;
-extern const char *m5_mmap_dev;
-void map_m5_mem();
-void unmap_m5_mem();
+    (*dt.m5_reset_stats)(ns_delay, ns_period);
 
-#ifdef __cplusplus
+    return true;
 }
-#endif
 
-#endif // __UTIL_M5_MMAP_H__
+Command reset_stats = {
+    "resetstats", 0, 2, do_reset_stats, "[delay [period]]\n"
+        "        After delay (default 0) reset the stats, and then "
+            "optionally every period after" };
+
+} // anonymous namespace

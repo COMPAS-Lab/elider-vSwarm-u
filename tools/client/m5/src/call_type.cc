@@ -1,18 +1,5 @@
 /*
- * Copyright (c) 2011, 2017 ARM Limited
- * All rights reserved
- *
- * The license below extends only to copyright in the software and shall
- * not be construed as granting a license to any other intellectual
- * property including but not limited to intellectual property relating
- * to a hardware implementation of the functionality of the software
- * licensed hereunder.  You may use the software subject to the license
- * terms below provided that you ensure that this notice is replicated
- * unmodified and in its entirety in all distributions of the software,
- * modified or unmodified, in source code or in binary form.
- *
- * Copyright (c) 2003-2005 The Regents of The University of Michigan
- * All rights reserved.
+ * Copyright 2020 Google Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -38,23 +25,78 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __UTIL_M5_MMAP_H__
-#define __UTIL_M5_MMAP_H__
+#include <cassert>
+#include <sstream>
 
-#include <stdint.h>
+#include "args.hh"
+#include "call_type.hh"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern void *m5_mem;
-extern uint64_t m5op_addr;
-extern const char *m5_mmap_dev;
-void map_m5_mem();
-void unmap_m5_mem();
-
-#ifdef __cplusplus
+std::map<std::string, CallType &> &
+CallType::map()
+{
+    static std::map<std::string, CallType &> all;
+    return all;
 }
-#endif
 
-#endif // __UTIL_M5_MMAP_H__
+CallType::CheckArgsResult
+CallType::checkArgs(Args &args)
+{
+    if (args.size() && args[0] == "--" + name) {
+        args.pop();
+        return CheckArgsResult::Match;
+    }
+    return CheckArgsResult::NoMatch;
+}
+
+CallType *
+CallType::detect(Args &args)
+{
+    CallType *def = nullptr;
+
+    for (auto p: map()) {
+        auto &ct = p.second;
+        if (ct.isDefault())
+            def = &ct;
+        auto result = ct.checkArgs(args);
+        switch (result) {
+          case CheckArgsResult::Match:
+            ct.init();
+            return &ct;
+          case CheckArgsResult::NoMatch:
+            continue;
+          case CheckArgsResult::Usage:
+            return nullptr;
+          default:
+            assert(!"Bad checkArgs result");
+        }
+    }
+
+    assert(def);
+    def->init();
+    return def;
+}
+
+std::string
+CallType::usageSummary()
+{
+    std::string summary = "";
+    for (auto p: map())
+        summary += p.second.formattedUsage();
+    return summary;
+}
+
+std::string
+CallType::formattedUsage() const
+{
+    std::ostringstream os;
+    os << "    ";
+    printBrief(os);
+    if (isDefault())
+        os << " (default)";
+    os << std::endl;
+
+    os << "        ";
+    printDesc(os);
+    os << std::endl;
+    return os.str();
+}

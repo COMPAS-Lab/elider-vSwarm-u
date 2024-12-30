@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017 ARM Limited
+ * Copyright (c) 2010-2013, 2016-2017 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -11,7 +11,7 @@
  * unmodified and in its entirety in all distributions of the software,
  * modified or unmodified, in source code or in binary form.
  *
- * Copyright (c) 2003-2005 The Regents of The University of Michigan
+ * Copyright (c) 2003-2006 The Regents of The University of Michigan
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,62 +38,54 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include <gem5/asm/generic/m5ops.h>
 
-#include "m5_mmap.h"
+.macro	m5op_func, name, func
+        .globl \name
+        \name:
+        // Put the m5 op number in x16.
+        mov x16, #(\func << 8)
+        // Branch into the common handler for the rest.
+        b 1f
+.endm
 
-void *m5_mem = NULL;
+.text
+#define M5OP(name, func) m5op_func M5OP_MERGE_TOKENS(name, _semi), func;
+        M5OP_FOREACH
+#undef M5OP
 
-#ifndef M5OP_ADDR
-#define M5OP_ADDR 0
-#endif
-uint64_t m5op_addr = M5OP_ADDR;
+        1:
+        // Get the address of the argument block.
+        ldr x17, =m5_semi_argument_block
+        // Store the m5 op number in the first slot.
+        str x16, [ x17 ], #8
+        // Store all 8 possible arguments in the subsequent slots. We don't
+        // know how many we need, so just store them all.
+        str x0, [ x17 ], #8
+        str x1, [ x17 ], #8
+        str x2, [ x17 ], #8
+        str x3, [ x17 ], #8
+        str x4, [ x17 ], #8
+        str x5, [ x17 ], #8
+        str x6, [ x17 ], #8
+        str x7, [ x17 ], #8
+        // Set x0 to the m5 op semi-hosting call number.
+        mov x0, #0x100
+        // Set x1 to the address of the argument blob.
+        ldr x1, =m5_semi_argument_block
+        // Trigger the semihosting call with the gem5 specific immediate.
+        hlt #0x5d57
+        ret
 
-const char *m5_mmap_dev = "/dev/mem";
-
-void
-map_m5_mem()
-{
-    int fd;
-
-    if (m5_mem) {
-        fprintf(stderr, "m5 mem already mapped.\n");
-        exit(1);
-    }
-
-    if (m5op_addr == 0) {
-        fprintf(stdout, "Warn: m5op_addr is set to 0x0\n");
-    }
-
-    fd = open(m5_mmap_dev, O_RDWR | O_SYNC);
-    if (fd == -1) {
-        fprintf(stderr, "Can't open %s: %s\n", m5_mmap_dev, strerror(errno));
-        exit(1);
-    }
-
-    m5_mem = mmap(NULL, 0x10000, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-                  m5op_addr);
-    close(fd);
-
-    if (!m5_mem) {
-        fprintf(stderr, "Can't map %s: %s\n", m5_mmap_dev, strerror(errno));
-        exit(1);
-    }
-}
-
-void
-unmap_m5_mem()
-{
-    if (m5_mem) {
-        munmap(m5_mem, 0x10000);
-        m5_mem = NULL;
-    }
-}
+.data
+        .globl m5_semi_argument_block
+        m5_semi_argument_block:
+        .quad 0 // function
+        .quad 0 // argument 0
+        .quad 0 // argument 1
+        .quad 0 // argument 2
+        .quad 0 // argument 3
+        .quad 0 // argument 4
+        .quad 0 // argument 5
+        .quad 0 // argument 6
+        .quad 0 // argument 7
